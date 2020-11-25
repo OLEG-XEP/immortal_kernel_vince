@@ -2340,7 +2340,7 @@ static struct cal_block_data *adm_find_cal_by_app_type(int cal_index, int path,
 		cal_block = list_entry(ptr,
 			struct cal_block_data, list);
 
-		if (cal_utils_is_cal_stale(cal_block, this.adm_cal_data[cal_index]))
+		if (cal_utils_is_cal_stale(cal_block, this_adm.cal_data[cal_index]))
 			continue;
 
 		if (cal_index == ADM_AUDPROC_CAL ||
