@@ -1,0 +1,26 @@
+config WLAN_VENDOR_REALTEK
+	bool "Realtek devices"
+	default y
+	---help---
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about  cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if WLAN_VENDOR_REALTEK
+
+source "drivers/net/wireless/realtek/rtl818x/Kconfig"
+source "drivers/net/wireless/realtek/rtlwifi/Kconfig"
+source "drivers/net/wireless/realtek/rtl8xxxu/Kconfig"
+source "drivers/net/wireless/realtek/rtl8188eus/Kconfig"
+source "drivers/net/wireless/realtek/rtl8814au/Kconfig"
+source "drivers/net/wireless/realtek/rtl8812au/Kconfig"
+source "drivers/net/wireless/realtek/rtl8192du/Kconfig"
+source "drivers/net/wireless/realtek/rtl8723au/Kconfig"
+source "drivers/net/wireless/realtek/rtl8723bu/Kconfig"
+source "drivers/net/wireless/realtek/rtl8188fu/Kconfig"
+source "drivers/net/wireless/realtek/rtl8192eu/Kconfig"
+
+endif # WLAN_VENDOR_REALTEK

@@ -1,0 +1,5 @@
+config MT7612U
+	tristate "Mediatek/Ralink MT7612U/MT7632U/MT7662U USB Wi-Fi driver"
+	depends on USB
+	---help---
+	  From git://github.com/ulli-kroll/mt7612u.git master
