@@ -64,7 +64,6 @@ export PATH=$CLANG_BIN:$GCC_BINS:$PATH
 export CROSS_COMPILE=$GCC_PREFIX64
 export CLANG_TRIPLE=$GCC_PREFIX64
 export CROSS_COMPILE_ARM32=$GCC_PREFIX32
-g(){
 VALUES="OBJCOPY=llvm-objcopy \
         OBJDUMP=llvm-objdump \
         STRIP=llvm-strip \
@@ -72,8 +71,6 @@ VALUES="OBJCOPY=llvm-objcopy \
         AR=llvm-ar \
 	AS=llvm-as \
         CC=clang "
-}
-VALUES="CC=clang"
 fi
 
 
