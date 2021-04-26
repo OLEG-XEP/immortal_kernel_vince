@@ -34,6 +34,7 @@
 *.patch
 *.gcno
 *.ll
+*.zip
 modules.builtin
 Module.symvers
 *.dwo
@@ -94,6 +95,8 @@ GRTAGS
 GSYMS
 GTAGS
 
+out/
+1techpack/
 # id-utils files
 ID
 
