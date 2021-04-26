@@ -3814,9 +3814,18 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
     tpCsrChannelInfo    currChannelListInfo;
     tANI_U8   scanChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
     int       outputNumOfChannels = 0;
-#ifdef FEATURE_WLAN_LFR
     tANI_U32 sessionId = pNeighborRoamInfo->csrSessionId;
-#endif
+    VOS_STATUS vos_status;
+
+    vos_status = WLANTL_updateSpoofMacAddr(pMac->roam.gVosContext,
+                  (v_MACADDR_t*)&pMac->roam.spoof_mac_addr,
+                  (v_MACADDR_t*)&pMac->roam.roamSession[sessionId].selfMacAddr);
+    if (vos_status != VOS_STATUS_SUCCESS)
+    {
+        smsLog(pMac, LOGE, FL("Failed to update MAC Spoof Addr in TL"));
+        return vos_status;
+    }
+
     currChannelListInfo = &pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo;
 
     if ( 
@@ -5378,6 +5387,50 @@ tANI_BOOLEAN csrNeighborMiddleOfRoaming (tHalHandle hHal)
 #endif
     return (val);
 }
+
+void csrRemoveNeighbourRoamPreauthCommand(tpAniSirGlobal pMac)
+{
+    tListElem *entry;
+    tSmeCmd *command;
+
+    entry = csrLLPeekHead(&pMac->sme.smeCmdPendingList, LL_ACCESS_LOCK);
+    while (entry)
+    {
+        command = GET_BASE_ADDR(entry, tSmeCmd, Link);
+        if ((eSmeCommandRoam == command->command) &&
+            (eCsrPerformPreauth == command->u.roamCmd.roamReason))
+        {
+            if (csrLLRemoveEntry(&pMac->sme.smeCmdPendingList, entry,
+                                 LL_ACCESS_LOCK)) {
+                csrReleaseCommandPreauth(pMac, command);
+                CSR_NEIGHBOR_ROAM_STATE_TRANSITION(
+                                            eCSR_NEIGHBOR_ROAM_STATE_CONNECTED);
+                break;
+            }
+        }
+        entry = csrLLNext(&pMac->sme.smeCmdPendingList, entry, LL_ACCESS_LOCK);
+    }
+
+    entry = csrLLPeekHead(&pMac->roam.roamCmdPendingList, LL_ACCESS_LOCK);
+    while (entry)
+    {
+        command = GET_BASE_ADDR(entry, tSmeCmd, Link);
+        if ((eSmeCommandRoam == command->command) &&
+            (eCsrPerformPreauth == command->u.roamCmd.roamReason))
+        {
+            if (csrLLRemoveEntry(&pMac->roam.roamCmdPendingList, entry,
+                                 LL_ACCESS_LOCK)) {
+                csrReleaseCommandPreauth(pMac, command);
+                CSR_NEIGHBOR_ROAM_STATE_TRANSITION(
+                                            eCSR_NEIGHBOR_ROAM_STATE_CONNECTED);
+                break;
+            }
+        }
+        entry = csrLLNext(&pMac->roam.roamCmdPendingList, entry,
+                          LL_ACCESS_LOCK);
+    }
+}
+
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 /* ---------------------------------------------------------------------------
 

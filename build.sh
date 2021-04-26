@@ -18,7 +18,7 @@ export ARCH=arm64                       #Editable
 export SUBARCH=$ARCH
 export USE_CCACHE=1
 export CCACHE_DIR=~/.ccache
-export JOBS=4
+export JOBS=6
 
 
 # Smart exports
@@ -64,6 +64,7 @@ export PATH=$CLANG_BIN:$GCC_BINS:$PATH
 export CROSS_COMPILE=$GCC_PREFIX64
 export CLANG_TRIPLE=$GCC_PREFIX64
 export CROSS_COMPILE_ARM32=$GCC_PREFIX32
+g(){
 VALUES="OBJCOPY=llvm-objcopy \
         OBJDUMP=llvm-objdump \
         STRIP=llvm-strip \
@@ -71,6 +72,8 @@ VALUES="OBJCOPY=llvm-objcopy \
         AR=llvm-ar \
 	AS=llvm-as \
         CC=clang "
+}
+VALUES="CC=clang"
 fi
 
 
@@ -84,6 +87,7 @@ make $DEFCONFIG all firmware_install modules_install \
 	O=$OUT_DIR \
 	$VALUES \
 	-j$JOBS
+
 
 
 # Second exports

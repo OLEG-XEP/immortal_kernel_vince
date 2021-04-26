@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -60,6 +60,12 @@
 /* 802.11 pre-share key length */
 #define WLAN_PSK_STRING_LENGTH   (64)
 #endif /* SAP_AUTH_OFFLOAD */
+
+/*
+ * Maximum length of the default SAP interface created using
+ * gEnabledefaultSAP ini param.
+ */
+#define CFG_CONCURRENT_IFACE_MAX_LEN 16
 
 // Defines for all of the things we read from the configuration (registry).
 
@@ -880,6 +886,11 @@ typedef enum
 #define CFG_LFR_MAWC_FEATURE_ENABLED_MIN                    (0)
 #define CFG_LFR_MAWC_FEATURE_ENABLED_MAX                    (1)
 #define CFG_LFR_MAWC_FEATURE_ENABLED_DEFAULT                (0) /* disabled */
+
+#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_NAME               "gBssidBlacklistTimeOut"
+#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_MIN                (0)
+#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_MAX                (240) //Max timeout
+#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_DEFAULT            (10)
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
@@ -3002,11 +3013,6 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_OPTIMIZE_CA_EVENT_ENABLE     ( 1 )
 #define CFG_OPTIMIZE_CA_EVENT_DEFAULT    ( 0 )
 
-#define CFG_FWR_MEM_DUMP_NAME       "gEnableFwrMemDump"
-#define CFG_FWR_MEM_DUMP_MAX        ( 1 )
-#define CFG_FWR_MEM_DUMP_MIN        ( 0 )
-#define CFG_FWR_MEM_DUMP_DEF        ( 1 )
-
 #define CFG_ACTIVE_PASSIVE_CHAN_CONV_NAME "gActivePassiveChCon"
 #define CFG_ACTIVE_PASSIVE_CHAN_CONV_MIN  (0)
 #define CFG_ACTIVE_PASSIVE_CHAN_CONV_MAX  (1)
@@ -3247,6 +3253,46 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_FORCE_RSNE_OVERRIDE_MIN     (0)
 #define CFG_FORCE_RSNE_OVERRIDE_MAX     (1)
 #define CFG_FORCE_RSNE_OVERRIDE_DEFAULT (0)
+
+/*
+ * <ini>
+ * gEnabledefaultSAP - This will control the creation of default SAP
+ * interface
+ * @Default: NULL
+ *
+ * This ini is used for providing control to create a default SAP session
+ * along with the creation of wlan0 and p2p0. The name of the interface is
+ * specified as the parameter
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_DEFAULT_SAP           "gEnabledefaultSAP"
+#define CFG_ENABLE_DEFAULT_SAP_DEFAULT   ""
+
+/*
+ * <ini>
+ * sae_enabled - Enable/Disable SAE support in driver
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable SAE support in driver
+ * Driver will update config to supplicant based on this config.
+ *
+ * Related: None
+ *
+ * Supported Feature: SAE
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_IS_SAE_ENABLED_NAME    "sae_enabled"
+#define CFG_IS_SAE_ENABLED_DEFAULT (1)
+#define CFG_IS_SAE_ENABLED_MIN     (0)
+#define CFG_IS_SAE_ENABLED_MAX     (1)
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -3791,7 +3837,6 @@ typedef struct
    v_U32_t                     linkFailTxCnt;
    v_BOOL_t                    ignorePeerHTopMode;
    v_U8_t                      gOptimizeCAevent;
-   v_BOOL_t                    enableFwrMemDump;
    v_U8_t                      gActivePassiveChCon;
    v_U32_t                     cfgExtScanConcMode;
    v_U16_t                     rps_mask;
@@ -3864,14 +3909,19 @@ typedef struct
    uint32_t                    btc_dyn_num_bt_ext;
    bool                        indoor_channel_support;
    bool                        force_rsne_override;
-
+   char enabledefaultSAP[CFG_CONCURRENT_IFACE_MAX_LEN];
+#ifdef WLAN_FEATURE_SAE
+   bool                        is_sae_enabled;
+#endif
+#ifdef FEATURE_WLAN_LFR
+   uint8_t                     bssid_blacklist_timeout;
+#endif
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
   -------------------------------------------------------------------------*/ 
 VOS_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx);
-VOS_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx);
 VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx );
 v_BOOL_t hdd_update_config_dat ( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_cfg_get_config(hdd_context_t *pHddCtx, char *pBuf, int buflen);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -278,10 +278,6 @@ VOS_STATUS
 WDA_ProcessSetRtsCtsHTVhtInd(tWDA_CbContext *pWDA,
                          tANI_U32 val);
 
-VOS_STATUS
-WDA_ProcessFwrMemDumpReq(tWDA_CbContext *pWDA,
-                                tAniFwrDumpReq* pFwrMemDumpReq);
-
 VOS_STATUS WDA_ProcessMonStartReq( tWDA_CbContext *pWDA, void* wdaRequest);
 VOS_STATUS WDA_ProcessMonStopReq( tWDA_CbContext *pWDA, void* wdaRequest);
 VOS_STATUS WDA_ProcessEnableDisableCAEventInd(tWDA_CbContext *pWDA, tANI_U8 val);
@@ -362,6 +358,67 @@ VOS_STATUS WDA_ProcessNanRequest(tWDA_CbContext *pWDA,
    return CONVERT_WDI2VOS_STATUS(status) ;
 }
 
+/*
+ * FUNCTION: WDA_ProcessBlackListReq
+ * Process BlackList request
+ */
+VOS_STATUS WDA_ProcessBlackListReq(tWDA_CbContext *pWDA,
+                                   tRoamParams *wdaRequest)
+{
+   WDI_Status status = WDI_STATUS_SUCCESS;
+   tWDA_ReqParams *pWdaParams;
+   WDI_BlackListReqType *wdiRequest = NULL;
+   size_t wdiReqLength =  sizeof(WDI_BlackListReqType);
+   uint8_t i;
+
+   wdiRequest = (WDI_BlackListReqType *)vos_mem_malloc(wdiReqLength);
+
+   if (NULL == wdiRequest) {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                "%s: VOS MEM Alloc Failure, size : %zu", __func__,
+                wdiReqLength);
+      vos_mem_free(wdaRequest);
+      return VOS_STATUS_E_NOMEM;
+   }
+
+   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+             "WDA: Process length of Blacklist data : %zu", wdiReqLength);
+
+   pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
+   if (NULL == pWdaParams) {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                "%s: VOS MEM Alloc Failure for tWDA_ReqParams", __func__);
+      VOS_ASSERT(0);
+      vos_mem_free(wdaRequest);
+      vos_mem_free(wdiRequest);
+      return VOS_STATUS_E_NOMEM;
+   }
+
+   wdiRequest->num_bssid_avoid_list = wdaRequest->num_bssid_avoid_list;
+   wdiRequest->blacklist_timedout = wdaRequest->blacklist_timedout;
+
+   for (i = 0; i < wdaRequest->num_bssid_avoid_list; i++) {
+       vos_mem_copy(wdiRequest->bssid_avoid_list[i],
+                    wdaRequest->bssid_avoid_list[i],
+                    sizeof(wpt_macAddr));
+   }
+   vos_mem_free(wdaRequest);
+
+   pWdaParams->pWdaContext = pWDA;
+   pWdaParams->wdaMsgParam = NULL;
+   pWdaParams->wdaWdiApiMsgParam = wdiRequest;
+
+   status = WDI_BlackListReq(wdiRequest, pWdaParams);
+
+   if (IS_WDI_STATUS_FAILURE(status)) {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                "Failure to request.  Free all the memory ");
+      vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
+      vos_mem_free(pWdaParams);
+   }
+
+   return CONVERT_WDI2VOS_STATUS(status);
+}
 /**
  * wda_state_info_dump() - prints state information of wda layer
  */
@@ -15911,70 +15968,6 @@ VOS_STATUS WDA_ProcessSetSpoofMacAddrReq(tWDA_CbContext *pWDA,
    return ;
 }
 
-VOS_STATUS WDA_ProcessFwrMemDumpReq(tWDA_CbContext * pWDA,
-                         tAniFwrDumpReq* pFwrMemDumpReq)
-{
-   VOS_STATUS status = VOS_STATUS_SUCCESS;
-   WDI_Status wstatus;
-   WDI_FwrMemDumpReqType * pWdiFwrMemDumpReq;
-   tWDA_ReqParams *pWdaParams ;
-
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                          "------> %s " ,__func__);
-   /* Sanity Check*/
-   if(NULL == pFwrMemDumpReq)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                           "%s: pFwrMemDumpReq received NULL", __func__);
-      VOS_ASSERT(0) ;
-      return VOS_STATUS_E_FAULT;
-   }
-
-   pWdiFwrMemDumpReq = (WDI_FwrMemDumpReqType *)vos_mem_malloc(sizeof(WDI_FwrMemDumpReqType));
-   if(NULL == pWdiFwrMemDumpReq)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                           "%s: pWdiFwrMemDumpReq Alloc Failure", __func__);
-      VOS_ASSERT(0);
-      return VOS_STATUS_E_NOMEM;
-   }
-
-   pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
-   if(NULL == pWdaParams)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                           "%s: pWdaParams Alloc Failure", __func__);
-      VOS_ASSERT(0);
-      vos_mem_free(pWdiFwrMemDumpReq);
-      return VOS_STATUS_E_NOMEM;
-   }
-
-   /* Store Params pass it to WDI */
-   pWdaParams->wdaWdiApiMsgParam = (void *)pWdiFwrMemDumpReq;
-   pWdaParams->pWdaContext = pWDA;
-   /* Store param pointer as passed in by caller */
-   pWdaParams->wdaMsgParam = pFwrMemDumpReq;
-
-   wstatus = WDI_FwrMemDumpReq(pWdiFwrMemDumpReq,
-                              (WDI_FwrMemDumpCb)WDA_FwrMemDumpRespCallback,
-                              pWdaParams);
-
-   if(IS_WDI_STATUS_FAILURE(wstatus))
-   {
-       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                 FL("Fwr Mem Dump Req failed, free all the memory"));
-       status = CONVERT_WDI2VOS_STATUS(wstatus);
-       vos_mem_free(pWdaParams->wdaWdiApiMsgParam) ;
-       pWdaParams->wdaWdiApiMsgParam = NULL;
-       vos_mem_free(pWdaParams->wdaMsgParam);
-       pWdaParams->wdaMsgParam = NULL;
-       vos_mem_free(pWdaParams);
-   }
-
-    return status;
-
-}
-
 /**
  * wda_process_set_allowed_action_frames_ind() - Set allowed action frames to FW
  *
@@ -17533,11 +17526,6 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessSetPowerParamsReq(pWDA, (tSirSetPowerParamsReq *)pMsg->bodyptr);
          break;
       }
-      case WDA_FW_MEM_DUMP_REQ:
-      {
-          WDA_ProcessFwrMemDumpReq(pWDA, (tAniFwrDumpReq*)pMsg->bodyptr);
-          break;
-      }
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
       case WDA_GTK_OFFLOAD_REQ:
@@ -17744,9 +17732,14 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessNanRequest( pWDA, (tNanRequest *)pMsg->bodyptr);
          break;
       }
+      case WDA_BLACKLIST_REQ:
+      {
+         WDA_ProcessBlackListReq(pWDA, (tRoamParams *)pMsg->bodyptr);
+         break;
+      }
       case WDA_SET_RTS_CTS_HTVHT:
       {
-         WDA_ProcessSetRtsCtsHTVhtInd( pWDA, pMsg->bodyval);
+         WDA_ProcessSetRtsCtsHTVhtInd(pWDA, pMsg->bodyval);
          break;
       }
 
@@ -20389,6 +20382,8 @@ void WDA_PERRoamTriggerScanReqCallback(WDI_Status status, void* pUserData)
    }
    if ( pWdaParams->wdaMsgParam != NULL)
       vos_mem_free(pWdaParams->wdaMsgParam);
+   if (pWdaParams->wdaWdiApiMsgParam != NULL)
+       vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
 
    vos_mem_free(pWdaParams) ;
    vosMsg.type = eWNI_SME_ROAM_SCAN_TRIGGER_RSP;
@@ -20424,6 +20419,8 @@ void WDA_PERRoamOffloadScanReqCallback(WDI_Status status, void* pUserData)
    }
    if ( pWdaParams->wdaMsgParam != NULL)
       vos_mem_free(pWdaParams->wdaMsgParam);
+   if (pWdaParams->wdaWdiApiMsgParam != NULL)
+       vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
 
    vos_mem_free(pWdaParams) ;
    vosMsg.type = eWNI_SME_ROAM_SCAN_OFFLOAD_RSP;
@@ -21291,14 +21288,95 @@ void WDA_FWLoggingDXEdoneInd(v_U32_t logType)
    }
 }
 
- /*  FUNCTION    WDA_featureCapsExchange
-  *  WDA API to invoke capability exchange between host and FW.
-  */
-void WDA_featureCapsExchange(v_PVOID_t pVosContext)
+/**
+ * wda_feature_caps_cb() - Callback to be invoked for feature
+ * capability response received from firmware.
+ * @feat_caps_rsp: feature capability response
+ * @user_data: user input holding HDD callbacks
+ *
+ * Return: None
+ */
+void wda_feature_caps_cb(void *feat_caps_rsp, void *user_data)
 {
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-      "%s:enter", __func__ );
-   WDI_featureCapsExchangeReq( NULL, pVosContext);
+	tWDA_ReqParams *wda_params = user_data;
+	tWDA_CbContext *wda;
+	struct sir_feature_caps_params *params;
+
+	VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+		  "<------ %s " ,__func__);
+	if(!wda_params) {
+		VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+			  "%s: wda params received NULL", __func__);
+		return;
+	}
+
+	wda = wda_params->pWdaContext;
+	params = wda_params->wdaMsgParam;
+	if(!params) {
+		VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+			  "%s: params received NULL", __func__);
+		goto free_memory;
+	}
+
+	(params->feature_caps_cb)(params->user_data);
+	vos_mem_free(params);
+
+free_memory:
+	vos_mem_free(wda_params->wdaWdiApiMsgParam);
+	vos_mem_free(wda_params);
+}
+
+VOS_STATUS WDA_featureCapsExchange(v_PVOID_t pVosContext,
+				   struct sir_feature_caps_params *request)
+{
+	WDI_Status status;
+	tWDA_CbContext *wda = NULL;
+	tWDA_ReqParams *wda_params = NULL;
+	struct sir_feature_caps_params *params = NULL;
+
+	VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+		  "%s:enter", __func__ );
+
+	wda = (tWDA_CbContext *)vos_get_context(VOS_MODULE_ID_WDA, pVosContext);
+	if(!wda) {
+		VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+			  "%s:pWDA is NULL", __func__);
+		return VOS_STATUS_E_FAILURE;
+	}
+
+	wda_params = vos_mem_malloc(sizeof(*wda_params));
+	if(!wda_params) {
+		VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+			  "%s: VOS MEM Alloc Failure", __func__);
+		return VOS_STATUS_E_NOMEM;
+	}
+	vos_mem_zero(wda_params, sizeof(*wda_params));
+
+	if (request) {
+		params = vos_mem_malloc(sizeof(*params));
+		if (!params) {
+			VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+				  "%s: VOS MEM Alloc Failure", __func__);
+			vos_mem_free(wda_params);
+			return VOS_STATUS_E_NOMEM;
+		}
+		vos_mem_zero(params, sizeof(*params));
+		*params = *request;
+	}
+
+	wda_params->pWdaContext = wda;
+	wda_params->wdaMsgParam = params;
+	wda_params->wdaWdiApiMsgParam = NULL;
+
+	status = WDI_featureCapsExchangeReq(wda_feature_caps_cb, wda_params);
+	if (status != WDI_STATUS_SUCCESS) {
+		if (params)
+			vos_mem_free(params);
+		vos_mem_free(wda_params);
+		return VOS_STATUS_E_FAILURE;
+	}
+
+	return VOS_STATUS_SUCCESS;
 }
 
 /*  FUNCTION    WDA_disableCapablityFeature
