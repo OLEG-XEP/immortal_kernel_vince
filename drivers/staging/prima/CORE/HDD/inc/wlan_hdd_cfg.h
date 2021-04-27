@@ -196,7 +196,7 @@
 #define CFG_ENABLE_SUSPEND_NAME                "gEnableSuspend"
 #define CFG_ENABLE_SUSPEND_MIN                 ( 0 ) //No support for suspend
 #define CFG_ENABLE_SUSPEND_MAX                 ( 3 ) //Map to Deep Sleep
-#define CFG_ENABLE_SUSPEND_DEFAULT             ( 1 ) //Map to Standby
+#define CFG_ENABLE_SUSPEND_DEFAULT             ( 3 ) //Map to Standby
 
 //Driver start/stop command mappings
 #define CFG_ENABLE_ENABLE_DRIVER_STOP_NAME     "gEnableDriverStop"
@@ -242,7 +242,7 @@
 #define CFG_DEFER_SCAN_TIME_INTERVAL            "gDeferScanTimeInterval"
 #define CFG_DEFER_SCAN_TIME_INTERVAL_MIN        ( 0 )
 #define CFG_DEFER_SCAN_TIME_INTERVAL_MAX        ( 65535 )
-#define CFG_DEFER_SCAN_TIME_INTERVAL_DEFAULT    ( 2000  )
+#define CFG_DEFER_SCAN_TIME_INTERVAL_DEFAULT    ( 1400  )
 
 //BMPS = BeaconModePowerSave
 #define CFG_ENABLE_BMPS_NAME                   "gEnableBmps"
@@ -890,7 +890,7 @@ typedef enum
 #define CFG_PER_BSSID_BLACKLIST_TIMEOUT_NAME               "gBssidBlacklistTimeOut"
 #define CFG_PER_BSSID_BLACKLIST_TIMEOUT_MIN                (0)
 #define CFG_PER_BSSID_BLACKLIST_TIMEOUT_MAX                (240) //Max timeout
-#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_DEFAULT            (10)
+#define CFG_PER_BSSID_BLACKLIST_TIMEOUT_DEFAULT            (0)
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
@@ -3228,7 +3228,7 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_POWERSAVE_OFFLOAD_NAME       "gEnablePowerSaveOffload"
 #define CFG_ENABLE_POWERSAVE_OFFLOAD_MIN        (1)
 #define CFG_ENABLE_POWERSAVE_OFFLOAD_MAX        (2)
-#define CFG_ENABLE_POWERSAVE_OFFLOAD_DEFAULT    (1)
+#define CFG_ENABLE_POWERSAVE_OFFLOAD_DEFAULT    (2)
 
 /*
  * <ini>

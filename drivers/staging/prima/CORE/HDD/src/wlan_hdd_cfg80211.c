@@ -135,9 +135,11 @@
     .flags = flag, \
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0))
 #ifdef WLAN_FEATURE_VOWIFI_11R
 #define WLAN_AKM_SUITE_FT_8021X         0x000FAC03
 #define WLAN_AKM_SUITE_FT_PSK           0x000FAC04
+#endif
 #endif
 
 #define HDD_CHANNEL_14 14
@@ -5623,7 +5625,8 @@ static int __wlan_hdd_cfg80211_set_spoofed_mac_oui(struct wiphy *wiphy,
             pHddCtx->spoofMacAddr.isEnabled = FALSE;
     }
 
-    schedule_delayed_work(&pHddCtx->spoof_mac_addr_work,
+    queue_delayed_work(system_freezable_power_efficient_wq,
+                          &pHddCtx->spoof_mac_addr_work,
                           msecs_to_jiffies(MAC_ADDR_SPOOFING_DEFER_INTERVAL));
 
     EXIT();
@@ -9417,7 +9420,11 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 #ifdef FEATURE_WLAN_SCAN_PNO
     if (pCfg->configPNOScanSupport)
     {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+	wiphy->max_sched_scan_reqs = 1;
+#else
         wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+#endif
         wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
         wiphy->max_match_sets       = SIR_PNO_MAX_SUPP_NETWORKS;
         wiphy->max_sched_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
@@ -11067,6 +11074,12 @@ int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx)
 	status = sme_update_channel_list((tpAniSirGlobal)hdd_ctx->hHal);
 	if (status)
 		hddLog(VOS_TRACE_LEVEL_ERROR, "Can't Restore channel list");
+	else
+		/*
+		 * Free the cache channels when the
+		 * disabled channels are restored
+		 */
+		wlan_hdd_free_cache_channels(hdd_ctx);
 	EXIT();
 
 	return 0;
@@ -12924,14 +12937,24 @@ done:
  * FUNCTION: wlan_hdd_cfg80211_change_iface
  * wrapper function to protect the actual implementation from SSR.
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+int wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
+                                   struct net_device *ndev,
+                                   enum nl80211_iftype type,
+                                   struct vif_params *params)
+#else
 int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                                     struct net_device *ndev,
                                     enum nl80211_iftype type,
                                     u32 *flags,
                                     struct vif_params *params
                                   )
+#endif
 {
     int ret;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+    u32 *flags = NULL;
+#endif
 
     vos_ssr_protect(__func__);
     ret = __wlan_hdd_cfg80211_change_iface(wiphy, ndev, type, flags, params);
@@ -14429,7 +14452,11 @@ static struct cfg80211_bss* wlan_hdd_cfg80211_inform_bss(
     freq = ieee80211_channel_to_frequency(chan_no);
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+    chan = ieee80211_get_channel(wiphy, freq);
+#else
     chan = __ieee80211_get_channel(wiphy, freq);
+#endif
 
     if (!chan) {
        hddLog(VOS_TRACE_LEVEL_ERROR, "%s chan pointer is NULL", __func__);
@@ -14602,7 +14629,13 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
 #else
     freq = ieee80211_channel_to_frequency(chan_no);
 #endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+    chan = ieee80211_get_channel(wiphy, freq);
+#else
     chan = __ieee80211_get_channel(wiphy, freq);
+#endif
+
     /*when the band is changed on the fly using the GUI, three things are done
      * 1. scan abort 2.flush scan results from cache 3.update the band with the new band user specified(refer to the hdd_setBand_helper function)
      * as part of the scan abort, message willbe queued to PE and we proceed with flushing and changinh the band.
@@ -15250,7 +15283,8 @@ allow_suspend:
         /* Generate new random mac addr for next scan */
         hddLog(VOS_TRACE_LEVEL_INFO, "scan completed - generate new spoof mac addr");
 
-        schedule_delayed_work(&pHddCtx->spoof_mac_addr_work,
+        queue_delayed_work(system_freezable_power_efficient_wq,
+                           &pHddCtx->spoof_mac_addr_work,
                            msecs_to_jiffies(MAC_ADDR_SPOOFING_DEFER_INTERVAL));
     }
 
@@ -20569,8 +20603,13 @@ error:
  * FUNCTION: wlan_hdd_cfg80211_sched_scan_stop
  * NL interface to disable PNO
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
+          struct net_device *dev, u64 reqid)
+#else
 static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
           struct net_device *dev)
+#endif
 {
     int ret;
 

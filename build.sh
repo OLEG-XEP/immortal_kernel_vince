@@ -11,8 +11,8 @@ ANYKERNEL_DIR=$KERNEL_HOME/AnyKernel3-$DEVICE
 OUT_DIR=$KERNEL_HOME/out
 MODULES_DIR=$ANYKERNEL_DIR/modules/system/lib
 FIRMWARE_DIR=$ANYKERNEL_DIR/modules/vendor/firmware
-HEADERS_DIR=$OUT_DIR/kernel-headers
 KERNEL_NAME=Immortal-NetHunter-Kernel-$(date +%d-%m-%y)-$DEVICE-V5.zip
+
 
 export ARCH=arm64                       #Editable
 export SUBARCH=$ARCH
@@ -86,22 +86,20 @@ make $DEFCONFIG all firmware_install modules_install \
 	-j$JOBS
 
 
-
 # Second exports
 MODULES=$OUT_DIR/lib/modules
 UNAME=$(ls $MODULES)
+HEADERS_DIR=$OUT_DIR/headers
 FIRMWARES="$(find $OUT_DIR -name *.fw) $(find $OUT_DIR -name *.bin)"
 EXTRA_FIRMWARES=$EXTRA_TOOLS_DIR/firmwares/*
 IMAGE=$OUT_DIR/arch/arm64/boot/Image.gz-dtb
-#WCNSS_FIRMWARES=drivers/staging/prima/firmware_bin/*
-#WCNSS_DIR=$FIRMWARE_DIR/wlan/prima
 
 # Checking of $IMAGE
 if [ -e  $IMAGE ]
 then
 sleep 0
 else
-exit
+exit 0
 fi
 
 
@@ -119,12 +117,11 @@ make $DEFCONFIG modules_prepare \
 	$VALUES \
 	-j$JOBS
 
-rm -r $(ls | grep -v arch | grep -v scripts | grep -v include | grep -v Makefile)
+rm -r $(ls | grep -vw arch | grep -v include | grep -v scripts | grep -v Makefile)
 cd arch
 rm -r $(ls | grep -v arm)
-cd -
-tar czf kernel-headers.tar.xz *
-mv kernel-headers.tar.xz $ANYKERNEL_DIR
+cd $HEADERS_DIR
+tar czf headers.tar.xz *
 cd $KERNEL_HOME
 
 
@@ -133,10 +130,11 @@ cd $KERNEL_HOME
 ######################################################
 
 # Copying
-mkdir -p $FIRMWARE_DIR $MODULES_DIR
 rm -rf $MODULES/$UNAME/build $MODULES/$UNAME/source
+mkdir -p $FIRMWARE_DIR $MODULES_DIR
 
 cp -nr $MODULES $MODULES_DIR
+cp -nr $HEADERS_DIR/headers.tar.xz $ANYKERNEL_DIR
 cp -nr $FIRMWARES $EXTRA_FIRMWARES $FIRMWARE_DIR
 cp -nr $IMAGE $ANYKERNEL_DIR
 
@@ -154,6 +152,7 @@ cd $KERNEL_HOME
 
 # Cleaning Up
 rm $ANYKERNEL_DIR/Image.gz-dtb
-rm -rf $ANYKERNEL_DIR/modules*
+rm $ANYKERNEL_DIR/headers.tar.xz
+rm -rf $ANYKERNEL_DIR/modules
+rm -rf $HEADERS_DIR
 rm -rf $MODULES
-rm -rf $ANYKERNEL_DIR/kernel-headers.tar.xz

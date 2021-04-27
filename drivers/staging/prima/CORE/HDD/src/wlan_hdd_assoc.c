@@ -552,11 +552,11 @@ void hdd_copy_ht_caps(struct ieee80211_ht_cap *hdd_ht_cap,
         hdd_ht_cap->mcs.rx_mask[i] =
             roam_ht_cap->supportedMCSSet[i];
 
-        hdd_ht_cap->mcs.rx_highest =
-            ((short) (roam_ht_cap->supportedMCSSet[11]) << 8) |
-            ((short) (roam_ht_cap->supportedMCSSet[10]));
-        hdd_ht_cap->mcs.tx_params =
-            roam_ht_cap->supportedMCSSet[12];
+    hdd_ht_cap->mcs.rx_highest =
+        ((short) (roam_ht_cap->supportedMCSSet[11]) << 8) |
+        ((short) (roam_ht_cap->supportedMCSSet[10]));
+    hdd_ht_cap->mcs.tx_params =
+        roam_ht_cap->supportedMCSSet[12];
 
 }
 
@@ -594,7 +594,7 @@ void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
     temp_vht_cap = roam_vht_cap->supportedChannelWidthSet &
         (IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK >>
             VHT_CAP_SUPP_CHAN_WIDTH_MASK_SHIFT);
-    if (temp_vht_cap)
+    if (temp_vht_cap) {
         if (roam_vht_cap->supportedChannelWidthSet &
             (IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ >>
             VHT_CAP_SUPP_CHAN_WIDTH_MASK_SHIFT))
@@ -607,6 +607,7 @@ void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
             hdd_vht_cap->vht_cap_info |=
             temp_vht_cap <<
             IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+    }
     if (roam_vht_cap->ldpcCodingCap)
         hdd_vht_cap->vht_cap_info |= IEEE80211_VHT_CAP_RXLDPC;
     if (roam_vht_cap->shortGI80MHz)
@@ -800,8 +801,13 @@ static void hdd_copy_vht_operation(hdd_station_ctx_t *hdd_sta_ctx,
     vos_mem_zero(hdd_vht_ops, sizeof(struct ieee80211_vht_operation));
 
     hdd_vht_ops->chan_width = roam_vht_ops->chanWidth;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+    hdd_vht_ops->center_freq_seg0_idx = roam_vht_ops->chanCenterFreqSeg1;
+    hdd_vht_ops->center_freq_seg1_idx = roam_vht_ops->chanCenterFreqSeg2;
+#else
     hdd_vht_ops->center_freq_seg1_idx = roam_vht_ops->chanCenterFreqSeg1;
     hdd_vht_ops->center_freq_seg2_idx = roam_vht_ops->chanCenterFreqSeg2;
+#endif
     hdd_vht_ops->basic_mcs_set = roam_vht_ops->basicMCSSet;
 }
 
@@ -1691,7 +1697,8 @@ static void hdd_check_and_move_if_sap_is_on_dfs_chan(hdd_context_t *hdd_ctx,
         }
 
         hddLog(LOG1, "Schedule workqueue to move the SAP to non DFS channel");
-        schedule_delayed_work(&hdd_ctx->ecsa_chan_change_work,
+        queue_delayed_work(system_freezable_power_efficient_wq,
+                            &hdd_ctx->ecsa_chan_change_work,
                             msecs_to_jiffies(ECSA_DFS_CHAN_CHANGE_DEFER_TIME));
     }
 }
@@ -2332,7 +2339,8 @@ hdd_schedule_ecsa_chan_change_work(hdd_context_t *hdd_ctx,
        time_diff = ECSA_SCC_CHAN_CHANGE_DEFER_INTERVAL - time_diff;
 
    hddLog(LOG1, FL("schedule ecsa_chan_change_work after %d ms"), time_diff);
-   schedule_delayed_work(&hdd_ctx->ecsa_chan_change_work,
+   queue_delayed_work(system_freezable_power_efficient_wq,
+                          &hdd_ctx->ecsa_chan_change_work,
                           msecs_to_jiffies(time_diff));
 }
 
@@ -4439,7 +4447,8 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                          (pHostapdAdapter->sessionCtx.ap.operatingChannel !=
                           pRoamInfo->chan_info.chan_id))
                  {
-                     schedule_delayed_work(&pHddCtx->ecsa_chan_change_work, 0);
+                     queue_delayed_work(system_freezable_power_efficient_wq,
+                                         &pHddCtx->ecsa_chan_change_work, 0);
                  }
                  else
                      hddLog(LOG1, FL("SAP restart not required"));
@@ -4959,7 +4968,7 @@ int hdd_set_csr_auth_type ( hdd_adapter_t  *pAdapter, eCsrAuthType RSNAuthType)
                 hddLog( LOG1, "%s: set authType to CCKM WPA. AKM also 802.1X.", __func__);
                 pRoamProfile->AuthType.authType[0] = eCSR_AUTH_TYPE_CCKM_WPA;
             } else
-            if ((RSNAuthType == eCSR_AUTH_TYPE_CCKM_WPA)) {
+            if (RSNAuthType == eCSR_AUTH_TYPE_CCKM_WPA) {
                 hddLog( LOG1, "%s: Last chance to set authType to CCKM WPA.", __func__);
                 pRoamProfile->AuthType.authType[0] = eCSR_AUTH_TYPE_CCKM_WPA;
             } else
@@ -4983,7 +4992,7 @@ int hdd_set_csr_auth_type ( hdd_adapter_t  *pAdapter, eCsrAuthType RSNAuthType)
                 hddLog( LOG1, "%s: set authType to CCKM RSN. AKM also 802.1X.", __func__);
                 pRoamProfile->AuthType.authType[0] = eCSR_AUTH_TYPE_CCKM_RSN;
             } else
-            if ((RSNAuthType == eCSR_AUTH_TYPE_CCKM_RSN)) {
+            if (RSNAuthType == eCSR_AUTH_TYPE_CCKM_RSN) {
                 hddLog( LOG1, "%s: Last chance to set authType to CCKM RSN.", __func__);
                 pRoamProfile->AuthType.authType[0] = eCSR_AUTH_TYPE_CCKM_RSN;
             } else

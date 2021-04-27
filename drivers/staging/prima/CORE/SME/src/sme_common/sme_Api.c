@@ -991,6 +991,37 @@ void sme_set_vowifi_mode(tpAniSirGlobal pMac, bool enable)
     }
 }
 
+/*
+ * sme_set_olpc_mode() - Set OLPC (low power)
+ * @pMac - context handler
+ * @enable - boolean value that determines the state
+ *
+ * The function sends the low power mode to firmware received
+ * via driver command
+ */
+void sme_set_olpc_mode(tpAniSirGlobal pMac, bool enable)
+{
+    tSirMsgQ msgQ;
+    tSirRetStatus retCode = eSIR_SUCCESS;
+
+    vos_mem_zero(&msgQ, sizeof(tSirMsgQ));
+    msgQ.type = WDA_LOW_POWER_MODE;
+    msgQ.reserved = 0;
+    msgQ.bodyval = enable;
+
+    retCode = wdaPostCtrlMsg(pMac, &msgQ);
+    if(eSIR_SUCCESS != retCode)
+    {
+        smsLog(pMac, LOGE,
+           FL("Posting WDA_LOW_POWER_MODE to WDA failed, reason=%X"),
+           retCode);
+    }
+    else
+    {
+        smsLog(pMac, LOG1, FL("posted WDA_LOW_POWER_MODE command"));
+    }
+}
+
 tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
 {
     tANI_BOOLEAN fContinue = eANI_BOOLEAN_FALSE;
@@ -1456,6 +1487,19 @@ sme_process_cmd:
                             fContinue = eANI_BOOLEAN_TRUE;
                             break;
 
+                        case eSmeCommandOlpcMode:
+                            csrLLUnlock(&pMac->sme.smeCmdActiveList);
+                            sme_set_olpc_mode(pMac,
+                                              pCommand->u.olpc_mode_enable);
+                            if (csrLLRemoveEntry(&pMac->sme.smeCmdActiveList,
+                                &pCommand->Link, LL_ACCESS_LOCK)) {
+                                csrReleaseCommand(pMac, pCommand);
+                            }
+                            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                                      "sme_command_olpc_mode processed");
+                            fContinue = eANI_BOOLEAN_TRUE;
+                            break;
+
                         default:
                             //something is wrong
                             //remove it from the active list
@@ -1642,7 +1686,9 @@ eHalStatus sme_Open(tHalHandle hHal)
 
       sme_p2pOpen(pMac);
       smeTraceInit(pMac);
+#ifdef SME_TRACE_RECORD
       sme_register_debug_callback();
+#endif
 
    }while (0);
 
@@ -7079,6 +7125,7 @@ VOS_STATUS sme_DbgWriteMemory(tHalHandle hHal, v_U32_t memAddr, v_U8_t *pBuf, v_
 }
 
 
+#ifdef WLAN_DEBUG
 void pmcLog(tpAniSirGlobal pMac, tANI_U32 loglevel, const char *pString, ...)
 {
     VOS_TRACE_LEVEL  vosDebugLevel;
@@ -7099,7 +7146,6 @@ void pmcLog(tpAniSirGlobal pMac, tANI_U32 loglevel, const char *pString, ...)
 
 void smsLog(tpAniSirGlobal pMac, tANI_U32 loglevel, const char *pString,...)
 {
-#ifdef WLAN_DEBUG
     // Verify against current log level
     if ( loglevel > pMac->utils.gLogDbgLevel[LOG_INDEX_FOR_MODULE( SIR_SMS_MODULE_ID )] )
         return;
@@ -7113,8 +7159,8 @@ void smsLog(tpAniSirGlobal pMac, tANI_U32 loglevel, const char *pString,...)
 
         va_end( marker );              /* Reset variable arguments.      */
     }
-#endif
 }
+#endif
 
 /* ---------------------------------------------------------------------------
     \fn sme_GetWcnssWlanCompiledVersion
@@ -15507,3 +15553,32 @@ eHalStatus sme_UpdateBlacklist(tHalHandle hHal, uint8_t session_id,
 
     return eHAL_STATUS_SUCCESS;
 }
+
+eHalStatus sme_update_olpc_mode(tHalHandle hHal, bool enable)
+{
+    tSmeCmd *pCommand;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+    pCommand = csrGetCommandBuffer(pMac);
+    if (pCommand == NULL) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                  FL("Failed to get command buffer for roam params"));
+        return eHAL_STATUS_RESOURCES;
+    }
+
+    smsLog(pMac, LOG1, "Posting OLPC command to csr queue");
+
+    pCommand->command = eSmeCommandOlpcMode;
+    pCommand->u.olpc_mode_enable = enable;
+
+    if (!HAL_STATUS_SUCCESS(csrQueueSmeCommand(pMac, pCommand, TRUE))) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                 FL("failed to post OLPC sme command"));
+        csrReleaseCommand(pMac, pCommand);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    return eHAL_STATUS_SUCCESS;
+}
+
+

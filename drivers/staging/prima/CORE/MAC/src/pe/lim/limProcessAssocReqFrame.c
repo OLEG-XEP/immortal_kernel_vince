@@ -1520,7 +1520,7 @@ error:
 \param  pMac
 \param  *pStaDs - Station DPH hash entry
 \param  psessionEntry - PE session entry
-\return tSirRetStatus
+\return None
 
  * ?????? How do I get 
  *  - subtype   =====> psessionEntry->parsedAssocReq.reassocRequest
@@ -1530,7 +1530,7 @@ error:
  *  - pHdr->seqControl  =====> no longer needed
  *  - pStaDs
 ------------------------------------------------------------------*/
-tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession psessionEntry)
+void limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession psessionEntry)
 {
     tpLimMlmAssocInd        pMlmAssocInd = NULL;
     tpLimMlmReassocInd      pMlmReassocInd;
@@ -1569,7 +1569,7 @@ tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPE
         {
             limReleasePeerIdx(pMac, pStaDs->assocId, psessionEntry);
             limLog(pMac, LOGP, FL("AllocateMemory failed for pMlmAssocInd"));
-            return eSIR_MEM_ALLOC_FAILED;
+            return;
         }
         vos_mem_set(pMlmAssocInd, temp ,0);
 
@@ -1622,7 +1622,7 @@ tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPE
                 PELOGE(limLog(pMac, LOGE, FL("rsnIEdata index out of bounds %d"),
                                               pMlmAssocInd->rsnIE.length);)
                 vos_mem_free(pMlmAssocInd);
-                return eSIR_FAILURE;
+                return;
             }
             pMlmAssocInd->rsnIE.rsnIEdata[pMlmAssocInd->rsnIE.length] = SIR_MAC_WPA_EID;
             pMlmAssocInd->rsnIE.rsnIEdata[pMlmAssocInd->rsnIE.length + 1] = pAssocReq->wpa.length;
@@ -1706,7 +1706,7 @@ tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPE
                     pMlmAssocInd->chan_info.info = MODE_11AC_VHT40;
                 } else
                     pMlmAssocInd->chan_info.info = MODE_11AC_VHT20;
-                    pMlmAssocInd->VHTCaps = pAssocReq->VHTCaps;
+                pMlmAssocInd->VHTCaps = pAssocReq->VHTCaps;
             } else if (psessionEntry->htCapability &&
                                 pAssocReq->HTCaps.present) {
                 if ((psessionEntry->vhtTxChannelWidthSet ==
@@ -1742,7 +1742,7 @@ tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPE
             limLog(pMac, LOGP, FL("call to AllocateMemory failed for "
                                   "pMlmReassocInd"));
             limReleasePeerIdx(pMac, pStaDs->assocId, psessionEntry);
-            return eSIR_MEM_ALLOC_FAILED;
+            return;
         }
         vos_mem_set(pMlmReassocInd, temp, 0);
 
@@ -1866,6 +1866,6 @@ tSirRetStatus limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPE
         vos_mem_free(pMlmReassocInd);
     }
 
-    return eSIR_SUCCESS;
+    return;
 
 } /*** end limSendMlmAssocInd() ***/

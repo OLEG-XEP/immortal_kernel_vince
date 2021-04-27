@@ -12164,6 +12164,26 @@ VOS_STATUS WDA_set_vowifi_ind(tWDA_CbContext *pWDA,
     return CONVERT_WDI2VOS_STATUS(status);
 }
 
+VOS_STATUS WDA_set_low_power_req(tWDA_CbContext *pWDA,
+                 tANI_BOOLEAN low_power)
+{
+    WDI_Status status;
+
+    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                   FL("---> %s"), __func__);
+    status = WDI_set_low_power_mode_req(low_power);
+    if (status == WDI_STATUS_PENDING)
+    {
+       VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                 FL("pending status received "));
+    }
+    else if (status != WDI_STATUS_SUCCESS_SYNC)
+    {
+       VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+               FL("Failure status %d"), status);
+    }
+    return CONVERT_WDI2VOS_STATUS(status);
+}
 /*
  * FUNCTION: WDA_SetRSSIThresholdsRespCallback
  * 
@@ -15068,7 +15088,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
 
    /* Divert Disassoc/Deauth frames thru self station, as by the time unicast
       disassoc frame reaches the HW, HAL has already deleted the peer station */
-   if ((pFc->type == SIR_MAC_MGMT_FRAME))
+   if (pFc->type == SIR_MAC_MGMT_FRAME)
    {
        if ((pFc->subType == SIR_MAC_MGMT_REASSOC_RSP) ||
                (pFc->subType == SIR_MAC_MGMT_PROBE_REQ))
@@ -17162,6 +17182,14 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                    WDA_set_qpower(pWDA, pMsg->bodyval);
          break;
       }
+      case WDA_LOW_POWER_MODE :
+      {
+         VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO_HIGH,
+                           "Handling msg type WDA_LOW_POWER_MODE");
+
+         WDA_set_low_power_req(pWDA, pMsg->bodyval);
+         break;
+      }
 
       case WDA_BTC_SET_CFG:
       {
@@ -18029,19 +18057,16 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
          if (SIR_COEX_IND_TYPE_CXM_FEATURES_NOTIFICATION ==
                 wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndType)
          {
-            if(wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData)
-            {
-                VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                  FL("Coex state: 0x%x coex feature: 0x%x"),
-                  wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[0],
-                  wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[1]);
+            VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+              FL("Coex state: 0x%x coex feature: 0x%x"),
+              wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[0],
+              wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[1]);
 
-                 if (wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[2] << 16)
-                 {
-                     VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, FL("power limit: 0x%x"),
-                     (tANI_U16)(wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[2]));
-                 }
-            }
+             if (wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[2] << 16)
+             {
+                 VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, FL("power limit: 0x%x"),
+                 (tANI_U16)(wdiLowLevelInd->wdiIndicationData.wdiCoexInfo.coexIndData[2]));
+             }
             break;
          }
 
