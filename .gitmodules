@@ -1,0 +1,6 @@
+[submodule "AnyKernel3-Vince"]
+	path = AnyKernel3-Vince
+	url = https://github.com/OLEG-XEP/AnyKernel3-Vince
+[submodule "extra_tools"]
+	path = extra_tools
+	url = https://github.com/OLEG-XEP/extra_tools
